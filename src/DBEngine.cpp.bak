@@ -1,0 +1,727 @@
+/*
+ * ============================================================================
+ *  Name     : SoundDb from DBEngine.cpp
+ *  Part of  : SoundDb
+ *  Created  : 24.07.2004 by IlPadrino group
+ *  Version  : 1.0
+ *  Copyright: IlPadrino group.
+ * ============================================================================
+ */
+
+#include <badesca.h>    // CDesCArrayFlat
+#include <s32file.h>    // CFileStore & CPermanentFileStore
+#include <bautils.h>    // file helpers
+#include <eikenv.h>
+#include "DBEngine.h"
+
+// Implementation specific constants
+const int KCustomSqlMaxLength = 256;
+const int KArrayGranularity = 5;     // for CDesCArrayFlat
+
+// ---------------------------------------------------------------------------
+// CSoundDb::NewL()
+//
+// Create instance of the Sound database engine.
+// ---------------------------------------------------------------------------
+CSoundDb* CSoundDb::NewL()
+    {
+    CSoundDb* tmp = new (ELeave)CSoundDb();
+    CleanupStack::PushL(tmp);
+    tmp->ConstructL();
+    CleanupStack::Pop();
+    return tmp;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::~CSoundDb()
+//
+// Destructor of the Sound database engine. Release resources.
+// ---------------------------------------------------------------------------
+CSoundDb::~CSoundDb()
+    {
+    Close();  // Just in case, if the user does not close this explicitely
+    iFsSession.Close();
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::ConstructL()
+//
+// Second phase construction. Leaves, if RFs session cannot be created.
+// ---------------------------------------------------------------------------
+void CSoundDb::ConstructL()
+    {
+    TInt err = iFsSession.Connect();
+    if(err)
+        User::Leave(err);
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::CSoundDb()
+//
+// Constructor
+// ---------------------------------------------------------------------------
+CSoundDb::CSoundDb()
+    {
+    iOpen = EFalse;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::OpenDbL()
+//
+// Open existing Sound database for exclusive access.
+// ---------------------------------------------------------------------------
+TInt CSoundDb::OpenDbL(const TFileName& aExistingSoundFile)
+    {
+    Close();
+
+    if(!BaflUtils::FileExists(iFsSession, aExistingSoundFile))
+        {
+            return KErrNotFound;
+        }
+
+    iFileStore = CPermanentFileStore::OpenL(iFsSession,
+        aExistingSoundFile, EFileRead|EFileWrite);
+    iFileStore->SetTypeL(iFileStore->Layout());       // Set file store type
+    iSoundDb.OpenL(iFileStore,iFileStore->Root());
+    iOpen = ETrue;
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::CreateDbL()
+//
+// Create a new database. The database will be in exclusive access mode.
+// ---------------------------------------------------------------------------
+TInt CSoundDb::CreateDbL(const TFileName& aNewSoundFile)
+    {
+    Close();
+
+    // Create empty database file.
+    iFileStore = CPermanentFileStore::ReplaceL(iFsSession,
+        aNewSoundFile, EFileRead|EFileWrite);
+    iFileStore->SetTypeL(iFileStore->Layout());       // Set file store type
+    TStreamId id = iSoundDb.CreateL(iFileStore);  // Create stream object
+    iFileStore->SetRootL(id);            // Keep database id as root of store
+    iFileStore->CommitL();               // Complete creation by commiting
+
+    // Create Sound tables and indexes
+    CreateSoundsTableL();
+    CreateSoundsIndexL();
+    iOpen = ETrue;
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::RemoveDbL()
+//
+// First remove the Sounds table. Then remove the database file.
+// ---------------------------------------------------------------------------
+TInt CSoundDb::RemoveDbL(const TFileName& aExistingSoundFile)
+    {
+    Close();
+
+    if(!BaflUtils::FileExists(iFsSession, aExistingSoundFile))
+        {
+            return KErrNotFound;
+        }
+
+    // It is enough to delete the database file directly. Because this example
+    // demonstrates DDL statements, it first opens and drops the Sounds table.
+
+    OpenDbL(aExistingSoundFile);
+    DropSoundsTableL();
+    Close();
+
+    iFsSession.Delete(aExistingSoundFile);
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::Close()
+//
+// Close the database.
+// ---------------------------------------------------------------------------
+TInt CSoundDb::Close()
+    {
+    iSoundDb.Close();
+    if(iFileStore)
+        {
+        delete iFileStore;
+        iFileStore = NULL;
+        }
+    iOpen = EFalse;
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::IsOpen()
+//
+// Return open status of the database.
+// ---------------------------------------------------------------------------
+TBool CSoundDb::IsOpen() const
+    {
+    return iOpen;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::CreateSoundsTableL()
+//
+// Creates Sounds table. Leaves, if the table cannot be created.
+// ---------------------------------------------------------------------------
+void CSoundDb::CreateSoundsTableL()
+    {
+
+    // Specify columns for Sounds table
+    TDbCol authorCol(KSoundsAuthorCol, EDbColText);   // Using default length
+    TDbCol titleCol(KSoundsTitleCol, EDbColText, KTitleMaxLength);
+    titleCol.iAttributes = TDbCol::ENotNull;
+    TDbCol descriptionCol(KSoundsDescriptionCol, EDbColLongText); // Stream Data
+
+    // Add the columns to column set
+    CDbColSet* soundColSet = CDbColSet::NewLC();
+    soundColSet->AddL(authorCol);
+    soundColSet->AddL(titleCol);
+    soundColSet->AddL(descriptionCol);
+
+    // Create the Sounds table
+    User::LeaveIfError(iSoundDb.CreateTable(KSoundsTable,
+        *soundColSet));
+    CleanupStack::PopAndDestroy(soundColSet);
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::CreateSoundsIndexL()
+//
+// Creates an index for Sounds table. Leaves, if the index cannot be created.
+// ---------------------------------------------------------------------------
+void CSoundDb::CreateSoundsIndexL()
+    {
+    // Create index consisting of two columns
+    TDbKeyCol authorCol(KSoundsAuthorCol);
+    TDbKeyCol titleCol(KSoundsTitleCol);
+
+    CDbKey* index = CDbKey::NewLC();   // create index key set
+    index->AddL(titleCol);
+    index->AddL(authorCol);
+    User::LeaveIfError(iSoundDb.CreateIndex(
+        KSoundsIndexName, KSoundsTable, *index));
+    CleanupStack::PopAndDestroy(index);
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::DropSoundsTableL()
+//
+// ---------------------------------------------------------------------------
+void CSoundDb::DropSoundsTableL()
+    {
+    _LIT(KDropTable, "DROP TABLE ");
+
+    // Sql: DROP TABLE Sounds
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(KDropTable);
+    sqlStr.Append(KSoundsTable);
+
+    RDbIncremental incOp;
+    TInt incStep = 0xFFFF;
+    // Initialise Execution
+    TInt incStat = incOp.Execute(iSoundDb, sqlStr, incStep);
+    while (incStep>0 && incStat==KErrNone)
+        {
+        incStat = incOp.Next(incStep); // Do the work
+        }
+    incOp.Close();
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::AddSoundWithSqlL()
+//
+// Add a Sound to database using RDbView and SQL
+// ---------------------------------------------------------------------------
+TInt CSoundDb::AddSoundWithSqlL(const TDesC& aAuthor,
+                         const TDesC& aTitle,
+                         const TDesC& aDescription)
+    {
+
+    if(aAuthor.Length()==0 || aTitle.Length()==0 || aDescription.Length()==0)
+        {
+        return KErrGeneral;
+        }
+
+    // Sql: SELECT Author, Title, Description FROM Sounds ORDER BY Title, Author
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(_L("SELECT "));
+    sqlStr.Append(KSoundsAuthorCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsTitleCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsDescriptionCol);
+    sqlStr.Append(_L(" FROM "));
+    sqlStr.Append(KSoundsTable);
+    sqlStr.Append(_L(" ORDER BY "));
+    sqlStr.Append(KSoundsTitleCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsAuthorCol);
+
+    RDbView view;    // Create a view on the database
+    User::LeaveIfError(
+        view.Prepare(iSoundDb, TDbQuery(sqlStr, EDbCompareFolded)));
+    User::LeaveIfError(view.EvaluateAll());
+
+    view.InsertL();  // Insert a row. Column order matches sql select statement
+
+    view.SetColL(1, aAuthor);
+    view.SetColL(2, aTitle);
+    RDbColWriteStream writeStream;  // Use stream to insert the description
+    writeStream.OpenLC(view, 3);
+    writeStream.WriteL(aDescription);
+    CleanupStack::Pop();
+    writeStream.Close();
+
+    view.PutL();     // Complete insertion
+
+    view.Close();
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::AddSoundWithCppApiL()
+//
+// Add a Sound to database using RDbTable API
+// ---------------------------------------------------------------------------
+TInt CSoundDb::AddSoundWithCppApiL(const TDesC& aAuthor,
+                            const TDesC& aTitle,
+                            const TDesC& aDescription)
+    {
+
+    if(aAuthor.Length()==0 || aTitle.Length()==0 || aDescription.Length()==0)
+        {
+        return KErrGeneral;
+        }
+
+    // Create an updateable database table object
+    RDbTable table;
+    TInt err = table.Open(iSoundDb, KSoundsTable, table.EUpdatable);
+    User::LeaveIfError(err);
+
+    CDbColSet* soundsColSet = table.ColSetL();
+    CleanupStack::PushL(soundsColSet);
+
+    table.Reset();
+    table.InsertL();
+    table.SetColL(soundsColSet->ColNo(KSoundsAuthorCol), aAuthor); // col = 1
+    table.SetColL(soundsColSet->ColNo(KSoundsTitleCol), aTitle);   // col = 2
+
+    // Use a stream for the long text column
+    RDbColWriteStream writeStream;
+    writeStream.OpenLC(table, soundsColSet->ColNo(KSoundsDescriptionCol));
+    writeStream.WriteL(aDescription);
+    writeStream.Close();
+    CleanupStack::Pop();
+
+    CleanupStack::PopAndDestroy(SoundsColSet);
+
+    table.PutL();    // Complete changes (the insertion)
+    table.Close();
+
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::GetAllSoundsL()
+//
+// Get array of all Sounds in database. Format of each array item is:
+//      <Author>|<Title>|<Description>
+// ---------------------------------------------------------------------------
+CDesCArrayFlat* CSoundDb::GetAllSoundsL()
+    {
+    TPtrC author, title;
+    TBuf<KDescriptionMaxLength> description;
+    TBuf<KSoundItemMaxLength> rowText;
+
+    RDbTable table;
+    TInt err = table.Open(iSoundDb, KSoundsTable, table.EReadOnly);
+    User::LeaveIfError(err);
+
+    CDesCArrayFlat* resultArray =
+        new (ELeave)CDesC16ArrayFlat(KArrayGranularity);
+    CleanupStack::PushL(resultArray);
+
+    table.Reset();
+    CDbColSet* colSet = table.ColSetL();
+    CleanupStack::PushL(colSet);
+
+    for (table.FirstL(); table.AtRow(); table.NextL())
+        {
+        description.Zero();
+        rowText.Zero();
+
+        table.GetL();
+
+        author.Set(table.ColDes(colSet->ColNo(KSoundsAuthorCol)));
+        title.Set(table.ColDes(colSet->ColNo(KSoundsTitleCol)));
+
+        TDbColNo descrColNo = colSet->ColNo(KSoundsDescriptionCol);
+        RDbColReadStream readStream;       // A stream object for long columns
+        readStream.OpenLC(table,descrColNo);
+        readStream.ReadL(description, table.ColLength(descrColNo));
+        readStream.Close();
+        CleanupStack::Pop(); //readStream
+
+        rowText.Append(author);
+        rowText.Append(KSeparator);
+        rowText.Append(title);
+        rowText.Append(KSeparator);
+        rowText.Append(description);
+
+        resultArray->AppendL(rowText); // Copy rowText to resultArray
+        }
+    CleanupStack::PopAndDestroy(colSet);
+    CleanupStack::Pop(resultArray);
+    table.Close();
+
+    return resultArray;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::GetASoundFastL()
+//
+// Get a Sound using index. Format of the result is:
+//      <Author>|<Title>|<Description>
+// ---------------------------------------------------------------------------
+TInt CSoundDb::GetASoundFastL(const TDesC& aTitle, TDes& aResult)
+    {
+    TInt err = KErrNone;
+    TBuf<KDescriptionMaxLength> description; // Only 128 first characters read
+    RDbTable rowset;
+
+    TDbSeekKey seekKey(aTitle); // Initialize one-column seek key
+
+    // Open view to "Sounds" table. Use index to browse the table.
+    User::LeaveIfError(
+        rowset.Open(iSoundDb, KSoundsTable, rowset.EReadOnly));
+    User::LeaveIfError(
+        rowset.SetIndex(KSoundsIndexName));
+
+    // Query colum numbers for author, title, and description
+    CDbColSet* colSet = rowset.ColSetL();
+    CleanupStack::PushL(colSet);
+    TInt authorColumnNo = colSet->ColNo(KSoundsAuthorCol);
+    TInt titleColumnNo = colSet->ColNo(KSoundsTitleCol);
+    TInt descrColumnNo = colSet->ColNo(KSoundsDescriptionCol);
+    CleanupStack::PopAndDestroy(colSet);
+
+    // Search the index for aTitle
+    if( rowset.SeekL(seekKey) )
+        {
+        rowset.GetL();
+
+        RDbColReadStream readStream;     // A stream object for long columns
+        readStream.OpenLC(rowset,descrColumnNo);
+        readStream.ReadL(description, rowset.ColLength(descrColumnNo));
+        readStream.Close();
+        CleanupStack::Pop(); //readStream
+
+        aResult.Zero();
+        aResult.Append(rowset.ColDes(authorColumnNo));
+        aResult.Append(KSeparator);
+        aResult.Append(rowset.ColDes(titleColumnNo));
+        aResult.Append(KSeparator);
+        aResult.Append(description);
+
+        err = KErrNone;
+        }
+    else
+        {
+        err = KErrNotFound;
+        }
+
+    rowset.Close();
+    return err;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::GetSoundsByKeyL()
+//
+// Get array of Sounds from database according to column name and a search
+// pattern. Format of each array item is:
+//      <Author>|<Title>|<Description>
+// ---------------------------------------------------------------------------
+CDesCArrayFlat* CSoundDb::GetSoundsByKeyL(const TDesC& aColumnName,
+    const TDesC& aSearchString)
+    {
+
+    TPtrC author, title;
+    TBuf<KDescriptionMaxLength> description;
+    TBuf<KSoundItemMaxLength> rowText;
+
+    // Sql: SELECT Author, Title, Description FROM Sounds
+    //      WHERE "aColumnName LIKE aSearchString"
+    //      ORDER BY Title, Author
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(_L("SELECT "));
+    sqlStr.Append(KSoundsAuthorCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsTitleCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsDescriptionCol);
+    sqlStr.Append(_L(" FROM "));
+    sqlStr.Append(KSoundsTable);
+    sqlStr.Append(_L(" WHERE "));
+    sqlStr.Append(aColumnName);
+    sqlStr.Append(_L(" LIKE '"));
+    sqlStr.Append(aSearchString);
+    sqlStr.Append(_L("' ORDER BY "));
+    sqlStr.Append(KSoundsTitleCol);
+    sqlStr.Append(_L(", "));
+    sqlStr.Append(KSoundsAuthorCol);
+
+    CDesCArrayFlat* resultArray =
+        new (ELeave)CDesC16ArrayFlat(KArrayGranularity);
+    CleanupStack::PushL(resultArray);
+
+    // Create a view on the database
+    RDbView view;
+    User::LeaveIfError(
+        view.Prepare(iSoundDb, TDbQuery(sqlStr), view.EReadOnly));
+    User::LeaveIfError(view.EvaluateAll());
+
+    CDbColSet* colSet = view.ColSetL();
+    CleanupStack::PushL(colSet);
+
+    // Append each result row to array
+    for (view.FirstL(); view.AtRow(); view.NextL())
+        {
+
+        description.Zero();
+        rowText.Zero();
+
+        view.GetL();
+
+        author.Set(view.ColDes(colSet->ColNo(KSoundsAuthorCol)));
+        title.Set(view.ColDes(colSet->ColNo(KSoundsTitleCol)));
+
+        TDbColNo descrColNo = colSet->ColNo(KSoundsDescriptionCol);
+        RDbColReadStream readStream;       // A stream object for long columns
+        readStream.OpenLC(view, descrColNo);
+        readStream.ReadL(description, view.ColLength(descrColNo));
+        readStream.Close();
+        CleanupStack::Pop(); //readStream
+
+        rowText.Append(author);
+        rowText.Append(KSeparator);
+        rowText.Append(title);
+        rowText.Append(KSeparator);
+        rowText.Append(description);
+
+        resultArray->AppendL(rowText);
+        }
+    CleanupStack::PopAndDestroy(colSet);
+    view.Close();
+    CleanupStack::Pop(resultArray);
+
+    return resultArray;
+
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::RemoveSoundsL()
+//
+// Delete a Sound using title pattern and RDbUpdate (DML)
+// ---------------------------------------------------------------------------
+TInt CSoundDb::RemoveSoundsL(const TDesC& aTitle, TInt& aResultCount)
+    {
+    RDbUpdate updOp;
+
+    // Sql: DELETE FROM Sounds WHERE Title LIKE 'aTitle'
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(_L("DELETE FROM "));
+    sqlStr.Append(KSoundsTable);
+    sqlStr.Append(_L(" WHERE "));
+    sqlStr.Append(KSoundsTitleCol);
+    sqlStr.Append(_L(" LIKE '"));
+    sqlStr.Append(aTitle);
+    sqlStr.Append(_L("'"));
+
+    // Initialize execution and perform the first step.
+    // Note: Execute() returns 0 (=KErrNone), but it does not affect database
+    //       until Next() is called.
+    TInt incStat = updOp.Execute(iSoundDb, sqlStr, EDbCompareFolded);
+    incStat = updOp.Next(); // This will leave, if Execute() failed.
+
+    while( incStat == 1 ) // Just in case, if the operation has more steps
+        {
+        incStat = updOp.Next();
+        }
+    aResultCount = updOp.RowCount();
+    updOp.Close();
+    return incStat; // KErrNone or system wide error code
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::RemoveAllSoundsL()
+//
+// Delete Sounds using asynchronous API. (RDbUpdate and DML)
+// This implementation is still synchronous, because it uses
+// User::WaitForRequest. Normally asynchronous functionality should be hidden
+// into active object and client callback interfaces.
+// ---------------------------------------------------------------------------
+TInt CSoundDb::RemoveAllSoundsL(TInt& aResultCount)
+    {
+    _LIT(KDeleteFrom, "DELETE FROM ");
+
+    // Sql: DELETE FROM Sounds
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(KDeleteFrom);
+    sqlStr.Append(KSoundsTable);
+
+    RDbUpdate updOp;
+    TRequestStatus incStat(1);
+    TInt updStat = updOp.Execute(iSoundDb, sqlStr, EDbCompareFolded);
+    while (updStat==KErrNone && incStat ==1)
+        {
+        updOp.Next(incStat);           // Start async operation. It returns
+                                       // immediately.
+        User::WaitForRequest(incStat); // For simplicity wait completion here.
+        }
+
+    aResultCount = updOp.RowCount();
+    updOp.Close();
+
+    if(updStat!=KErrNone)
+        return updStat;       // System wide error code
+    else
+        return incStat.Int(); // KErrNone or system wide error code
+    }
+
+
+// ---------------------------------------------------------------------------
+// CSoundDb::UpdateSoundTitle()
+//
+// Update Sound title using SQL UPDATE.
+// ---------------------------------------------------------------------------
+//
+TInt CSoundDb::UpdateSoundTitle(const TDesC& aOldTitleKey,
+    const TDesC& aNewTitle)
+    {
+    _LIT(KSQLUpdateStart, "UPDATE Sounds SET Title = '");
+    _LIT(KSQLUpdateMiddle, "' WHERE Title = '");
+    _LIT(KSQLUpdateEnd, "'");
+
+    TBuf<KCustomSqlMaxLength> sqlStr;
+    sqlStr.Append(KSQLUpdateStart);
+    sqlStr.Append(aNewTitle);
+    sqlStr.Append(KSQLUpdateMiddle);
+    sqlStr.Append(aOldTitleKey);
+    sqlStr.Append(KSQLUpdateEnd);
+
+    return iSoundDb.Execute(sqlStr);
+    }
+
+
+// ---------------------------------------------------------------------------
+// CSoundDb::AddDateColumnL()
+//
+// Get array of column names and sizes of the Sounds table.
+// ---------------------------------------------------------------------------
+CDesCArrayFlat* CSoundDb::ColumnNamesAndSizes()
+    {
+    RDbTable SoundsTable;
+    TBuf<32> columnNameAndSize;
+    _LIT(KDelimiter, ": ");
+    _LIT(KNoSize,"No size");
+
+    // Open the Sounds table.
+    User::LeaveIfError(
+        SoundsTable.Open(iSoundDb, KSoundsTable, SoundsTable.EReadOnly));
+    CleanupClosePushL(SoundsTable);  // Remember to pop and close
+
+    CDesCArrayFlat* resultArray =
+        new (ELeave)CDesC16ArrayFlat(KArrayGranularity);
+    CleanupStack::PushL(resultArray);
+
+    // Iterate through the colums of Sounds table. Extract the column name and
+    // column size (size only for text columns).´
+    // Note: Description column is long text. Database limits its size
+    //       only by hardware. If size is queried, it is -1
+    CDbColSet* colSet = SoundsTable.ColSetL();
+    CleanupStack::PushL(colSet);
+    TDbColSetIter colIter(*colSet);
+    while(colIter)
+        {
+        columnNameAndSize.Zero();
+        columnNameAndSize.Append(colIter->iName);
+        columnNameAndSize.Append(KDelimiter);
+        if(colIter->iType == EDbColText)
+            columnNameAndSize.AppendNum(colIter->iMaxLength);
+        else
+            columnNameAndSize.Append(KNoSize);
+        resultArray->AppendL(columnNameAndSize);
+        colIter++;
+        }
+    CleanupStack::PopAndDestroy(colSet);
+    CleanupStack::Pop(resultArray);
+
+    // Pop the SoundsTable from cleanup stack and close it.
+    CleanupStack::PopAndDestroy();
+
+    return resultArray;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::HasDateColumn()
+//
+// Tests wheter the Sounds table has date column
+// ---------------------------------------------------------------------------
+TInt CSoundDb::HasDateColumn(TBool& aReturnValue)
+    {
+    RDbTable SoundsTable;
+    aReturnValue = EFalse;
+
+    // Open the Sounds table.
+    User::LeaveIfError(
+        SoundsTable.Open(iSoundDb, KSoundsTable, SoundsTable.EReadOnly));
+    CleanupClosePushL(SoundsTable);  // Remember to pop and close
+
+    // Iterate through the colums of Sounds table. Check whether there is
+    // a 'PublishDate' column
+    CDbColSet* colSet = SoundsTable.ColSetL();
+    CleanupStack::PushL(colSet);
+    TDbColSetIter colIter(*colSet);
+    while(colIter)
+        {
+        if( (colIter->iName).Compare(KSoundsDateCol) == 0) // 0 = equal
+            {
+            aReturnValue = ETrue;
+            break;
+            }
+        colIter++;
+        }
+    CleanupStack::PopAndDestroy(colSet);
+
+    // Pop the SoundsTable from cleanup stack and close it.
+    CleanupStack::PopAndDestroy();
+
+    return KErrNone;
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::AddDateColumnL()
+//
+// Adds date column to Sounds table (DDL).
+// ---------------------------------------------------------------------------
+TInt CSoundDb::AddDateColumnL()
+    {
+    _LIT(KSqlAddDate, "ALTER TABLE Sounds ADD PublishDate DATE");
+    return iSoundDb.Execute(KSqlAddDate);
+    }
+
+// ---------------------------------------------------------------------------
+// CSoundDb::RemoveDateColumn()
+//
+// Removes date column from Sounds table (DDL).
+// ---------------------------------------------------------------------------
+TInt CSoundDb::RemoveDateColumn()
+    {
+    _LIT(KSqlRemoveDate, "ALTER TABLE Sounds DROP PublishDate");
+    return iSoundDb.Execute(KSqlRemoveDate);
+    }

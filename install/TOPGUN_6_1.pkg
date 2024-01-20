@@ -1,0 +1,34 @@
+;
+; Installation file for TOPGUN application
+;
+&EN
+#{"TopGun"},(0x1027486B),1,01,223
+;
+; This line indicates that this installation is for the Series60 v0.9 and 1.0
+; and that the Series60ProductID is required
+(0x101F6F88), 0, 0, 0, {"Series60ProductID"}
+;
+; The following paths assume that the SDK is installed in the default
+; location, and will need to be modified if this is not the case
+
+"r:\Epoc32\Release\ARMI\UREL\TOPGUN.APP"     -"!:\system\apps\TOPGUN\TOPGUN.app"
+"r:\Epoc32\Release\wins\udeb\z\system\apps\TOPGUN\TOPGUN.RSC"     -"!:\system\apps\TOPGUN\TOPGUN.rsc"
+"r:\Epoc32\Release\wins\udeb\z\system\apps\TOPGUN\TOPGUN.aif"     -"!:\system\apps\TOPGUN\TOPGUN.aif"
+"r:\Epoc32\Release\wins\udeb\z\system\apps\TOPGUN\TOPGUN.MBM"     -"!:\system\apps\TOPGUN\TOPGUN.MBM"
+
+;
+; sounds
+;	
+      
+"..\sounds\audio\music2.wav"     -"!:\system\apps\TOPGUN\music2.wav"
+"..\sounds\audio\enter.wav"      -"!:\system\apps\TOPGUN\enter.wav"
+"..\sounds\audio\menu.wav"       -"!:\system\apps\TOPGUN\menu.wav"
+"..\sounds\sfx\effect.wav"	 -"!:\system\apps\TOPGUN\effect.wav"
+"..\sounds\sfx\effect2.wav"	 -"!:\system\apps\TOPGUN\effect2.wav"
+"..\sounds\sfx\back.wav"	 -"!:\system\apps\TOPGUN\back.wav"
+"..\sounds\sfx\button.wav"	 -"!:\system\apps\TOPGUN\button.wav"
+"..\sounds\sfx\select.wav"	 -"!:\system\apps\TOPGUN\select.wav"
+
+
+; Remove INI file when uninstalling the app.
+""-"!:\system\apps\TOPGUN\TOPGUN.ini",FN

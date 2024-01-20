@@ -1,0 +1,21 @@
+# DO NOT EDIT !
+#
+# Level settings
+#
+# Copyright (c) 2005 Il Padrino group.  All rights reserved.
+#
+
+nol = 2
+
+[1]
+
+offset = 
+
+map = 
+
+e1 
+e2 
+
+[2]
+
+offset = 

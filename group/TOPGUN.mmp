@@ -1,0 +1,224 @@
+/*
+* ============================================================================
+*  Name     : TOPGUN.mmp
+*  Part of  : TOPGUN
+*  Created  : 5/9/2004 by pawel@wapice.com
+*  Description:
+*     This is the project specification file for TOPGUN.
+*     
+*  Version  : 1.0
+*  Copyright: IlPadrino group.
+* ============================================================================
+*/
+
+ 
+TARGET      TOPGUN.exe
+
+TARGETTYPE  exe
+
+UID         0x100039CE 0x1027486B
+EPOCSTACKSIZE 0x10000
+EPOCHEAPSIZE 0x1000 0xA00000
+
+VENDORID    0x101FB657
+
+CAPABILITY  NetworkServices LocalServices Location ReadUserData WriteUserData ReadDeviceData WriteDeviceData SwEvent UserEnvironment AllFiles
+
+
+
+SOURCEPATH ..\src
+//bitmap help functions
+SOURCE  bitmapmethods.cpp
+//splash screens
+SOURCE	SplashView.cpp
+SOURCE	SplashContainer.cpp
+SOURCE	SplashView1.cpp
+SOURCE	SplashContainer1.cpp
+//graphics
+SOURCE	ImageFactory.cpp
+SOURCE	RenderableFactory.cpp
+SOURCE	TopGunEngine.cpp
+SOURCE	KeyHandler.cpp
+SOURCE	GameTimer.cpp
+SOURCE	DoubleBufferedArea.cpp
+SOURCE	BaseAnim.cpp
+SOURCE	BitmapAnimFrame.cpp
+SOURCE	BitmapTile.cpp
+SOURCE	FireAnim.cpp
+SOURCE	ParticleSystem.cpp
+SOURCE	TopGunLeafTileset.cpp
+SOURCE	TopGunNodeTileset.cpp
+SOURCE	ShipAnim.cpp
+SOURCE	EnemyAnim.cpp
+SOURCE  BulletAnim.cpp
+SOURCE	ExplosionAnim.cpp
+SOURCE	Tilemap.cpp
+SOURCE	Tileset.cpp
+//sound
+SOURCE  MyActive.cpp
+SOURCE	CSndMixer.cpp
+SOURCE	CMixerThread.cpp
+SOURCE	CWavLoader.cpp
+//common
+SOURCE  TOPGUN.cpp
+SOURCE  TOPGUNApp.cpp 
+SOURCE  TOPGUNAppUi.cpp
+SOURCE  TOPGUNDocument.cpp
+SOURCE  TOPGUNContainer.cpp
+SOURCE  TOPGUNView.cpp
+SOURCE  TOPGUNView2.cpp
+SOURCE  TOPGUNContainer2.cpp
+SOURCE  TOPGUNView3.cpp
+SOURCE  TOPGUNContainer3.cpp
+SOURCE  TOPGUNView4.cpp
+SOURCE  TOPGUNContainer4.cpp
+SOURCE  TOPGUNView5.cpp
+SOURCE  TOPGUNContainer5.cpp
+SOURCE  TOPGUNView6.cpp
+SOURCE  TOPGUNContainer6.cpp
+SOURCE  TOPGUNView7.cpp
+SOURCE  TOPGUNContainer7.cpp
+SOURCE  TOPGUNView8.cpp
+SOURCE  TOPGUNContainer8.cpp
+SOURCE  TOPGUNView9.cpp
+SOURCE  TOPGUNContainer9.cpp
+SOURCE  Bullet.cpp
+SOURCE  Enemy.cpp
+SOURCE  Position.cpp
+SOURCE  UtilsAnim.cpp
+//sound & sfx volume NOT USED ANYMORE replaced by GameSettings.cpp
+SOURCE  DBEngine.cpp
+//level loading
+SOURCE  Level.cpp
+SOURCE  LevelLoader.cpp
+//high score
+SOURCE  HighScore.cpp
+//game settings
+SOURCE  GameSettings.cpp
+
+SOURCEPATH		..\data
+
+START RESOURCE	TOPGUN.rss
+HEADER
+TARGET TOPGUN.rsc
+TARGETPATH resource\apps
+END //RESOURCE
+
+START RESOURCE	TOPGUN_reg.rss
+TARGET TOPGUN_reg.rsc
+#ifdef WINSCW
+TARGETPATH 	  \private\10003a3f\apps
+#else
+TARGETPATH 	  \private\10003a3f\import\apps
+#endif
+END //RESOURCE
+
+LANG     SC
+
+USERINCLUDE . 
+USERINCLUDE ..\inc
+
+SYSTEMINCLUDE   . \epoc32\include
+
+LIBRARY  euser.lib 
+LIBRARY  apparc.lib 
+LIBRARY  cone.lib 
+LIBRARY  eikcore.lib 
+LIBRARY  eikcoctl.lib 
+LIBRARY  avkon.lib  
+LIBRARY	 ws32.lib
+LIBRARY	 bitgdi.lib
+LIBRARY	 fbscli.lib
+LIBRARY  mediaclientaudiostream.lib
+LIBRARY  efsrv.lib
+LIBRARY  edbms.lib 
+LIBRARY  estor.lib
+LIBRARY  bafl.lib 
+//#if defined(WINSCW)
+//LIBRARY	 wapstklib.lib     // Fix to allow emulator load bigger array size
+//#endif
+
+    
+START BITMAP  TopGun.mbm
+HEADER
+SOURCEPATH  ..\images
+SOURCE  c12 IlPadrino.bmp
+SOURCE  c12 Timesofwar.bmp
+SOURCE  c12 Mainmenu.bmp
+SOURCE  c12 Options.bmp
+SOURCE  c12 Controls.bmp
+SOURCE  c12 Credits.bmp
+SOURCE  c12 GameOver.bmp
+SOURCE  c12 Pause.bmp
+SOURCE  c12 Score.bmp
+SOURCE  c12 missioncompleted.bmp
+SOURCE  c12 missionfailed.bmp
+SOURCE  c12 missionobjective.bmp
+SOURCE  c12 highscore.bmp
+
+SOURCE  c12 ShipAnim.bmp
+
+SOURCE	c12 EXPLOSIONANIM.bmp
+SOURCE	c12 BulletAnim.bmp
+SOURCE	c12 EnemyBulletAnim.bmp
+
+SOURCEPATH  ..\images\L1
+
+//level 1
+SOURCE  c12 TileImageL1.bmp
+SOURCE	1   TileMaskL1.bmp
+
+SOURCE  c12 EnemyAnim2L1.bmp
+SOURCE  c12 EnemyAnim3L1.bmp
+SOURCE  c12 EnemyAnim4L1.bmp
+SOURCE  c12 EnemyAnim6L1.bmp
+SOURCE  c12 EnemyAnim8L1.bmp
+
+SOURCEPATH  ..\images\L2
+//level 2
+SOURCE  c12 TileImageL2.bmp
+SOURCE	1   TileMaskL2.bmp
+
+SOURCE  c12 EnemyAnim2L2.bmp
+SOURCE  c12 EnemyAnim3L2.bmp
+SOURCE  c12 EnemyAnim4L2.bmp
+SOURCE  c12 EnemyAnim6L2.bmp
+SOURCE  c12 EnemyAnim8L2.bmp
+
+SOURCEPATH  ..\images\L3
+//level 3
+SOURCE  c12 TileImageL3.bmp
+SOURCE	1   TileMaskL3.bmp
+
+SOURCE  c12 EnemyAnim2L3.bmp
+SOURCE  c12 EnemyAnim3L3.bmp
+SOURCE  c12 EnemyAnim4L3.bmp
+SOURCE  c12 EnemyAnim6L3.bmp
+SOURCE  c12 EnemyAnim8L3.bmp
+
+SOURCEPATH  ..\images\L4
+//level 4
+SOURCE  c12 TileImageL4.bmp
+SOURCE	1   TileMaskL4.bmp
+
+SOURCE  c12 EnemyAnim2L4.bmp
+SOURCE  c12 EnemyAnim3L4.bmp
+SOURCE  c12 EnemyAnim4L4.bmp
+SOURCE  c12 EnemyAnim6L4.bmp
+SOURCE  c12 EnemyAnim8L4.bmp
+
+SOURCEPATH  ..\images\L5
+//level 5
+SOURCE  c12 TileImageL5.bmp
+SOURCE	1   TileMaskL5.bmp
+
+SOURCE  c12 EnemyAnim2L5.bmp
+SOURCE  c12 EnemyAnim3L5.bmp
+SOURCE  c12 EnemyAnim4L5.bmp
+SOURCE  c12 EnemyAnim6L5.bmp
+SOURCE  c12 EnemyAnim8L5.bmp
+
+END
+
+//AIF TOPGUN.aif ..\aif TOPGUNaif.rss c8 context_pane_icon.bmp context_pane_icon_mask.bmp list_icon.bmp list_icon_mask.bmp
+

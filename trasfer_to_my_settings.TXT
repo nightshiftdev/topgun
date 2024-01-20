@@ -1,0 +1,8 @@
+CFbsBitmap& aSourceImageconst, 
+const TPoint &aScreenPos,
+TInt aSpeed, 
+TInt aEnergy,
+TInt aOrgEnergy,
+TInt aZigZac,
+const TSize &aSize,
+const TEnemy &aType

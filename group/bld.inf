@@ -1,0 +1,19 @@
+/*
+* ============================================================================
+*  Name     : bld.inf
+*  Part of  : TOPGUN
+*  Created  : 5/9/2004 by pawel@wapice.com
+*  Description:
+*	 This file provides the information required for building the
+*    whole of a TOPGUN.
+*  Version  : 1.0
+*  Copyright: P&P
+* ============================================================================
+*/
+
+
+PRJ_MMPFILES
+
+gnumakefile TOPGUN_icons_aif.mk
+TOPGUN.mmp
+

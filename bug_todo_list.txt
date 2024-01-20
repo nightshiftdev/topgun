@@ -1,0 +1,33 @@
+1. Percentage of enemies to destroy does not reset. Severity: Low Originator: Pawel Status: Done
+
+2. Default sound level setting are 0. (After installing the game). Severity: Low Originator: Risto Status: Done
+
+3. Phone hangs after going to pause and when going to application view. Severity: Critical Originator: Piotr Status: Testing
+
+4. Collision detection still not OK. Severity: Medium Originator: Igor Status: Done
+
+5. When passing between screens - white screen. Severity: Critical Originator: Pawel Status: Testing
+
+6. Can destroy boss by collision. Severity: Critical Originator: Pawel Status: Testing
+
+7. Percentage of destryed enemies in green/red depending on requirements. Severity: Very Low Originator: Igor Status: Under investigation
+
+8. Change bitmaps: enemies, L2, scorebar. Severity: Low. Originator: Piotr Status: Under investigation
+
+
+
+9.GAME OVER a MISSION FAILED is not in correct order, if you FAIL mission, you should restart only that mission (not whole game). Severity: Medium. Originator: Igor Status: Under investigation
+
+10.There is no OK to confirm high-score name (maybe even instead of pressing-joystick). Severity: Low. Originator: Igor Status: Under investigation 
+
+11.RED background instead of foreground if % bellow target. Severity: Very Low. Originator: Igor Status: Under investigation
+
+12.bosses should shoot not stright only. Severity: Medium. Originator: Igor Status: done
+
+13.actual percentage (I think) should drop when target is away from the screen - so it is clear that you missed it, not generated ... but it is only my opinion Severity: Low. Originator: Igor Status: Under investigation
+
+14.Implement Continue option! Severity: Medium. Originator: Pawel Status: Under investigation
+
+15. Change bitmaps: Game Over on Mission Failed! Mission Failed on Game Over with Continue on the left No on the right Yes Severity: Medium. Originator: Pawel Status: Under investigation
+
+15. Change single to new game. DONE
